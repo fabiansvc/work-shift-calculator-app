@@ -1,5 +1,4 @@
 import type { Route } from "./+types/home";
-import { Welcome } from "../welcome/welcome";
 import ShiftCalculator from "../shift-calculator/ShiftCalculator";
 
 export function meta({}: Route.MetaArgs) {
@@ -15,7 +14,6 @@ export default function Home() {
 
   return (
     <main className="pt-16 p-4 container mx-auto space-y-8">
-      <Welcome />
       <ShiftCalculator sundays={sundays} holidays={holidays} />
     </main>
   );
