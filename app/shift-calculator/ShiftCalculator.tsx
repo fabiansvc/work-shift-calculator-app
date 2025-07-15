@@ -6,15 +6,13 @@ import {
   getHours,
 } from "date-fns";
 
-const HOURLY_RATE = 6189.13;
-
 export interface ShiftCalculatorProps {
   sundays: string[];
   holidays: string[];
 }
 
 interface Breakdown {
-  base: number;
+  RDO: number;
   RNO: number;
   RDDF: number;
   RNDF: number;
@@ -24,6 +22,15 @@ interface Breakdown {
   HENDF: number;
 }
 
+interface Row {
+  entry: string;
+  exit: string;
+  rate: number;
+  breakdown: Breakdown | null;
+}
+
+const DEFAULT_RATE = 6189.13;
+
 function calculateBreakdown(
   entry: Date,
   exit: Date,
@@ -32,7 +39,7 @@ function calculateBreakdown(
 ): Breakdown {
   const totalMinutes = differenceInMinutes(exit, entry);
   const breakdown: Breakdown = {
-    base: 0,
+    RDO: 0,
     RNO: 0,
     RDDF: 0,
     RNDF: 0,
@@ -62,7 +69,7 @@ function calculateBreakdown(
       if (special && night) breakdown.RNDF++;
       else if (special && dayTime) breakdown.RDDF++;
       else if (!special && night) breakdown.RNO++;
-      else breakdown.base++;
+      else breakdown.RDO++;
     }
   }
 
@@ -73,99 +80,146 @@ function calculateBreakdown(
   return breakdown;
 }
 
-function calculateTotalPay(bd: Breakdown): number {
+function calculateTotalPay(bd: Breakdown, rate: number): number {
   return (
-    bd.base * HOURLY_RATE +
-    bd.RNO * HOURLY_RATE * 1.35 +
-    bd.RDDF * HOURLY_RATE * 1.75 +
-    bd.RNDF * HOURLY_RATE * 2.1 +
-    bd.HEDO * HOURLY_RATE * 1.25 +
-    bd.HENO * HOURLY_RATE * 1.75 +
-    bd.HEDDF * HOURLY_RATE * 2.0 +
-    bd.HENDF * HOURLY_RATE * 2.5
+    bd.RDO * rate +
+    bd.RNO * rate * 1.35 +
+    bd.RDDF * rate * 1.75 +
+    bd.RNDF * rate * 2.1 +
+    bd.HEDO * rate * 1.25 +
+    bd.HENO * rate * 1.75 +
+    bd.HEDDF * rate * 2.0 +
+    bd.HENDF * rate * 2.5
   );
 }
 
 export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
-  const [entry, setEntry] = useState("");
-  const [exit, setExit] = useState("");
-  const [result, setResult] = useState<Breakdown | null>(null);
+  const [rows, setRows] = useState<Row[]>([
+    { entry: "", exit: "", rate: DEFAULT_RATE, breakdown: null },
+  ]);
 
   const sundaySet = new Set(sundays);
   const holidaySet = new Set(holidays);
 
-  const handleCalculate = () => {
-    if (!entry || !exit) return;
-    const entryDate = new Date(entry);
-    const exitDate = new Date(exit);
-    if (isNaN(entryDate.getTime()) || isNaN(exitDate.getTime())) return;
-    if (exitDate <= entryDate) return;
-    const res = calculateBreakdown(entryDate, exitDate, sundaySet, holidaySet);
-    setResult(res);
+  const updateRow = (
+    idx: number,
+    field: keyof Row,
+    value: string | number
+  ) => {
+    setRows((prev) => {
+      const newRows = [...prev];
+      const row = { ...newRows[idx], [field]: value } as Row;
+      if (row.entry && row.exit) {
+        const en = new Date(row.entry);
+        const ex = new Date(row.exit);
+        if (!isNaN(en.getTime()) && !isNaN(ex.getTime()) && ex > en) {
+          row.breakdown = calculateBreakdown(en, ex, sundaySet, holidaySet);
+        } else {
+          row.breakdown = null;
+        }
+      } else {
+        row.breakdown = null;
+      }
+      newRows[idx] = row;
+      return newRows;
+    });
   };
 
-  const totalPay = result ? calculateTotalPay(result) : 0;
+  const addRow = () =>
+    setRows((prev) => [
+      ...prev,
+      { entry: "", exit: "", rate: DEFAULT_RATE, breakdown: null },
+    ]);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2">
-        <label>
-          Entry
-          <input
-            type="datetime-local"
-            value={entry}
-            onChange={(e) => setEntry(e.target.value)}
-            className="border p-2 rounded w-full"
-          />
-        </label>
-        <label>
-          Exit
-          <input
-            type="datetime-local"
-            value={exit}
-            onChange={(e) => setExit(e.target.value)}
-            className="border p-2 rounded w-full"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={handleCalculate}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Calculate
-        </button>
-      </div>
-
-      {result && (
-        <table className="min-w-full text-left border mt-4">
-          <thead>
-            <tr>
-              <th className="border px-2 py-1">Category</th>
-              <th className="border px-2 py-1">Hours</th>
+      <table className="min-w-full text-left border">
+        <thead>
+          <tr>
+            <th className="border px-2 py-1">Fecha/Hora Entrada</th>
+            <th className="border px-2 py-1">Fecha/Hora Salida</th>
+            <th className="border px-2 py-1">RDO</th>
+            <th className="border px-2 py-1">RNO</th>
+            <th className="border px-2 py-1">RDDF</th>
+            <th className="border px-2 py-1">RNDF</th>
+            <th className="border px-2 py-1">HEDO</th>
+            <th className="border px-2 py-1">HENO</th>
+            <th className="border px-2 py-1">HEDDF</th>
+            <th className="border px-2 py-1">HENDF</th>
+            <th className="border px-2 py-1">Valor Hora</th>
+            <th className="border px-2 py-1">Total a Pagar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => (
+            <tr key={idx}>
+              <td className="border px-2 py-1">
+                <input
+                  type="datetime-local"
+                  value={row.entry}
+                  onChange={(e) => updateRow(idx, "entry", e.target.value)}
+                  className="border p-1"
+                />
+              </td>
+              <td className="border px-2 py-1">
+                <input
+                  type="datetime-local"
+                  value={row.exit}
+                  onChange={(e) => updateRow(idx, "exit", e.target.value)}
+                  className="border p-1"
+                />
+              </td>
+              <td className="border px-2 py-1">
+                {row.breakdown ? row.breakdown.RDO.toFixed(2) : "-"}
+              </td>
+              <td className="border px-2 py-1">
+                {row.breakdown ? row.breakdown.RNO.toFixed(2) : "-"}
+              </td>
+              <td className="border px-2 py-1">
+                {row.breakdown ? row.breakdown.RDDF.toFixed(2) : "-"}
+              </td>
+              <td className="border px-2 py-1">
+                {row.breakdown ? row.breakdown.RNDF.toFixed(2) : "-"}
+              </td>
+              <td className="border px-2 py-1">
+                {row.breakdown ? row.breakdown.HEDO.toFixed(2) : "-"}
+              </td>
+              <td className="border px-2 py-1">
+                {row.breakdown ? row.breakdown.HENO.toFixed(2) : "-"}
+              </td>
+              <td className="border px-2 py-1">
+                {row.breakdown ? row.breakdown.HEDDF.toFixed(2) : "-"}
+              </td>
+              <td className="border px-2 py-1">
+                {row.breakdown ? row.breakdown.HENDF.toFixed(2) : "-"}
+              </td>
+              <td className="border px-2 py-1">
+                <input
+                  type="number"
+                  value={row.rate}
+                  onChange={(e) =>
+                    updateRow(idx, "rate", parseFloat(e.target.value) || 0)
+                  }
+                  className="border p-1 w-24"
+                  step="0.01"
+                />
+              </td>
+              <td className="border px-2 py-1">
+                {row.breakdown
+                  ? calculateTotalPay(row.breakdown, row.rate).toFixed(2)
+                  : "-"}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="border px-2 py-1">Entry</td>
-              <td className="border px-2 py-1">{format(new Date(entry), "yyyy-MM-dd HH:mm")}</td>
-            </tr>
-            <tr>
-              <td className="border px-2 py-1">Exit</td>
-              <td className="border px-2 py-1">{format(new Date(exit), "yyyy-MM-dd HH:mm")}</td>
-            </tr>
-            {Object.entries(result).map(([key, value]) => (
-              <tr key={key}>
-                <td className="border px-2 py-1">{key}</td>
-                <td className="border px-2 py-1">{value.toFixed(2)}</td>
-              </tr>
-            ))}
-            <tr>
-              <td className="border px-2 py-1 font-bold">Total Pay</td>
-              <td className="border px-2 py-1 font-bold">{totalPay.toFixed(2)} COP</td>
-            </tr>
-          </tbody>
-        </table>
-      )}
+          ))}
+        </tbody>
+      </table>
+      <button
+        type="button"
+        onClick={addRow}
+        className="bg-blue-500 text-white px-4 py-2 rounded"
+      >
+        Add Row
+      </button>
     </div>
   );
 }
