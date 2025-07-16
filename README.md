@@ -32,6 +32,13 @@ Start the development server with HMR:
 npm run dev
 ```
 
+For API routes used by the shift calculator you also need the simple
+JSON server running in another terminal:
+
+```bash
+npm run start:api
+```
+
 Your application will be available at `http://localhost:5173`.
 
 ## Building for Production

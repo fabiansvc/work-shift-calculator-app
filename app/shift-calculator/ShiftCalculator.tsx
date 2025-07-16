@@ -120,33 +120,36 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
     field: keyof Row,
     value: string
   ) => {
-    setRows((prev) => {
-      const newRows = [...prev];
-      const row = { ...newRows[idx], [field]: value } as Row;
-      if (field === "entry") {
-        const en = new Date(value);
-        if (!isNaN(en.getTime())) {
-          en.setMinutes(0, 0, 0);
-          row.entry = format(en, "yyyy-MM-dd'T'HH:mm");
-          const ex = addDays(en, 1);
-          ex.setHours(5, 0, 0, 0);
-          row.exit = format(ex, "yyyy-MM-dd'T'HH:mm");
-        }
+    const row = { ...rows[idx], [field]: value } as Row;
+    if (field === "entry") {
+      const en = new Date(value);
+      if (!isNaN(en.getTime())) {
+        en.setMinutes(0, 0, 0);
+        row.entry = format(en, "yyyy-MM-dd'T'HH:mm");
+        const ex = addDays(en, 1);
+        ex.setHours(5, 0, 0, 0);
+        row.exit = format(ex, "yyyy-MM-dd'T'HH:mm");
       }
-      if (row.entry && row.exit) {
-        const en = new Date(row.entry);
-        const ex = new Date(row.exit);
-        if (!isNaN(en.getTime()) && !isNaN(ex.getTime()) && ex > en) {
-          row.breakdown = calculateBreakdown(en, ex, sundaySet, holidaySet);
-        } else {
-          row.breakdown = null;
-        }
+    }
+    if (row.entry && row.exit) {
+      const en = new Date(row.entry);
+      const ex = new Date(row.exit);
+      if (!isNaN(en.getTime()) && !isNaN(ex.getTime()) && ex > en) {
+        row.breakdown = calculateBreakdown(en, ex, sundaySet, holidaySet);
       } else {
         row.breakdown = null;
       }
+    } else {
+      row.breakdown = null;
+    }
+    setRows((prev) => {
+      const newRows = [...prev];
       newRows[idx] = row;
       return newRows;
     });
+    if (row.breakdown) {
+      saveRow(row, idx);
+    }
   };
 
   const addRow = () =>
@@ -155,8 +158,7 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
       { entry: "", exit: "", breakdown: null },
     ]);
 
-  const saveRow = (idx: number) => {
-    const row = rows[idx];
+  const saveRow = (row: Row, idx: number) => {
     if (!row.breakdown) return;
     const method = row.id ? 'PUT' : 'POST';
     const url = row.id ? `/api/shifts/${row.id}` : '/api/shifts';
@@ -263,13 +265,6 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
                   : "-"}
               </td>
               <td className="border px-2 py-1 space-x-2">
-                <button
-                  type="button"
-                  onClick={() => saveRow(idx)}
-                  className="bg-green-500 text-white px-2 py-1 rounded"
-                >
-                  Guardar
-                </button>
                 <button
                   type="button"
                   onClick={() => deleteRow(idx)}
