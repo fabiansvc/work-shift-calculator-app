@@ -100,7 +100,7 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
     { entry: "", exit: "", breakdown: null },
   ]);
   const [rate, setRate] = useState<number>(DEFAULT_RATE);
-  const API = "https://work-shift-calculator-backend.onrender.com/api/shifts/";
+  const API = "https://work-shift-calculator-backend.onrender.com/api/shifts";
   //const API = "http://localhost:3001/api/shifts";
 
   useEffect(() => {
@@ -163,7 +163,7 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
   const saveRow = (row: Row, idx: number) => {
     if (!row.breakdown) return;
     const method = row.id ? 'PUT' : 'POST';
-    const url = row.id ? `${API}${row.id}` : API;
+    const url = row.id ? `${API}/${row.id}` : API;
     fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -183,7 +183,7 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
   const deleteRow = (idx: number) => {
     const row = rows[idx];
     if (row.id) {
-      fetch(`${API}${row.id}`, { method: 'DELETE' })
+      fetch(`${API}/${row.id}`, { method: 'DELETE' })
         .catch((err) => console.error('Error:', err));
     }
     setRows((prev) => prev.filter((_, i) => i !== idx));

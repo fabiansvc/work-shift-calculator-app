@@ -3,8 +3,8 @@ import ShiftCalculator from "../shift-calculator/ShiftCalculator";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "Calculadora SMDLV" },
+    { name: "description", content: "Calculadora para dias laborales en Colombia" },
   ];
 }
 
