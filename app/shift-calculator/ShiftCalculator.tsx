@@ -102,14 +102,14 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
   const [rate, setRate] = useState<number>(DEFAULT_RATE);
 
   useEffect(() => {
-    fetch('/api/shifts')
+    fetch('http://localhost:3001/api/shifts')
       .then((res) => res.json())
       .then((data: Row[]) => {
         if (Array.isArray(data) && data.length) {
           setRows(data);
         }
       })
-      .catch(() => {});
+      .catch((err) => console.error('Error:', err));
   }, []);
 
   const sundaySet = new Set(sundays);
@@ -161,7 +161,7 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
   const saveRow = (row: Row, idx: number) => {
     if (!row.breakdown) return;
     const method = row.id ? 'PUT' : 'POST';
-    const url = row.id ? `/api/shifts/${row.id}` : '/api/shifts';
+    const url = row.id ? `http://localhost:3001/api/shifts/${row.id}` : 'http://localhost:3001/api/shifts';
     fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -175,14 +175,14 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
           return newRows;
         });
       })
-      .catch(() => {});
+      .catch((err) => console.error('Error:', err));
   };
 
   const deleteRow = (idx: number) => {
     const row = rows[idx];
     if (row.id) {
-      fetch(`/api/shifts/${row.id}`, { method: 'DELETE' })
-        .catch(() => {});
+      fetch(`http://localhost:3001/api/shifts/${row.id}`, { method: 'DELETE' })
+        .catch((err) => console.error('Error:', err));
     }
     setRows((prev) => prev.filter((_, i) => i !== idx));
   };
