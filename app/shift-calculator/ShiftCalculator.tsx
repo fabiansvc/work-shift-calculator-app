@@ -4,6 +4,7 @@ import {
   differenceInMinutes,
   format,
   getHours,
+  addDays,
 } from "date-fns";
 
 export interface ShiftCalculatorProps {
@@ -25,7 +26,6 @@ interface Breakdown {
 interface Row {
   entry: string;
   exit: string;
-  rate: number;
   breakdown: Breakdown | null;
 }
 
@@ -95,8 +95,9 @@ function calculateTotalPay(bd: Breakdown, rate: number): number {
 
 export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
   const [rows, setRows] = useState<Row[]>([
-    { entry: "", exit: "", rate: DEFAULT_RATE, breakdown: null },
+    { entry: "", exit: "", breakdown: null },
   ]);
+  const [rate, setRate] = useState<number>(DEFAULT_RATE);
 
   const sundaySet = new Set(sundays);
   const holidaySet = new Set(holidays);
@@ -104,11 +105,21 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
   const updateRow = (
     idx: number,
     field: keyof Row,
-    value: string | number
+    value: string
   ) => {
     setRows((prev) => {
       const newRows = [...prev];
       const row = { ...newRows[idx], [field]: value } as Row;
+      if (field === "entry") {
+        const en = new Date(value);
+        if (!isNaN(en.getTime())) {
+          en.setMinutes(0, 0, 0);
+          row.entry = format(en, "yyyy-MM-dd'T'HH:mm");
+          const ex = addDays(en, 1);
+          ex.setHours(5, 0, 0, 0);
+          row.exit = format(ex, "yyyy-MM-dd'T'HH:mm");
+        }
+      }
       if (row.entry && row.exit) {
         const en = new Date(row.entry);
         const ex = new Date(row.exit);
@@ -128,11 +139,21 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
   const addRow = () =>
     setRows((prev) => [
       ...prev,
-      { entry: "", exit: "", rate: DEFAULT_RATE, breakdown: null },
+      { entry: "", exit: "", breakdown: null },
     ]);
 
   return (
     <div className="space-y-4">
+      <div>
+        <label className="mr-2">Valor Hora:</label>
+        <input
+          type="number"
+          value={rate}
+          onChange={(e) => setRate(parseFloat(e.target.value) || 0)}
+          className="border p-1 w-24"
+          step="0.01"
+        />
+      </div>
       <table className="min-w-full text-left border">
         <thead>
           <tr>
@@ -146,7 +167,6 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
             <th className="border px-2 py-1">HENO</th>
             <th className="border px-2 py-1">HEDDF</th>
             <th className="border px-2 py-1">HENDF</th>
-            <th className="border px-2 py-1">Valor Hora</th>
             <th className="border px-2 py-1">Total a Pagar</th>
           </tr>
         </thead>
@@ -194,19 +214,8 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
                 {row.breakdown ? row.breakdown.HENDF.toFixed(2) : "-"}
               </td>
               <td className="border px-2 py-1">
-                <input
-                  type="number"
-                  value={row.rate}
-                  onChange={(e) =>
-                    updateRow(idx, "rate", parseFloat(e.target.value) || 0)
-                  }
-                  className="border p-1 w-24"
-                  step="0.01"
-                />
-              </td>
-              <td className="border px-2 py-1">
                 {row.breakdown
-                  ? calculateTotalPay(row.breakdown, row.rate).toFixed(2)
+                  ? calculateTotalPay(row.breakdown, rate).toFixed(2)
                   : "-"}
               </td>
             </tr>
@@ -218,7 +227,7 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
         onClick={addRow}
         className="bg-blue-500 text-white px-4 py-2 rounded"
       >
-        Add Row
+        Añadir otro día de trabajo
       </button>
     </div>
   );
