@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   addMinutes,
   differenceInMinutes,
@@ -24,9 +24,11 @@ interface Breakdown {
 }
 
 interface Row {
+  id?: number;
   entry: string;
   exit: string;
   breakdown: Breakdown | null;
+  rate?: number;
 }
 
 const DEFAULT_RATE = 6189.13;
@@ -99,6 +101,17 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
   ]);
   const [rate, setRate] = useState<number>(DEFAULT_RATE);
 
+  useEffect(() => {
+    fetch('/api/shifts')
+      .then((res) => res.json())
+      .then((data: Row[]) => {
+        if (Array.isArray(data) && data.length) {
+          setRows(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const sundaySet = new Set(sundays);
   const holidaySet = new Set(holidays);
 
@@ -142,6 +155,36 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
       { entry: "", exit: "", breakdown: null },
     ]);
 
+  const saveRow = (idx: number) => {
+    const row = rows[idx];
+    if (!row.breakdown) return;
+    const method = row.id ? 'PUT' : 'POST';
+    const url = row.id ? `/api/shifts/${row.id}` : '/api/shifts';
+    fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...row, rate }),
+    })
+      .then((res) => res.json())
+      .then((data: Row) => {
+        setRows((prev) => {
+          const newRows = [...prev];
+          newRows[idx] = data;
+          return newRows;
+        });
+      })
+      .catch(() => {});
+  };
+
+  const deleteRow = (idx: number) => {
+    const row = rows[idx];
+    if (row.id) {
+      fetch(`/api/shifts/${row.id}`, { method: 'DELETE' })
+        .catch(() => {});
+    }
+    setRows((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -168,6 +211,7 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
             <th className="border px-2 py-1">HEDDF</th>
             <th className="border px-2 py-1">HENDF</th>
             <th className="border px-2 py-1">Total a Pagar</th>
+            <th className="border px-2 py-1">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -217,6 +261,22 @@ export function ShiftCalculator({ sundays, holidays }: ShiftCalculatorProps) {
                 {row.breakdown
                   ? calculateTotalPay(row.breakdown, rate).toFixed(2)
                   : "-"}
+              </td>
+              <td className="border px-2 py-1 space-x-2">
+                <button
+                  type="button"
+                  onClick={() => saveRow(idx)}
+                  className="bg-green-500 text-white px-2 py-1 rounded"
+                >
+                  Guardar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteRow(idx)}
+                  className="bg-red-500 text-white px-2 py-1 rounded"
+                >
+                  Eliminar
+                </button>
               </td>
             </tr>
           ))}
